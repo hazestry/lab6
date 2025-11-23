@@ -31,16 +31,18 @@ API для автомобильного центра (продажа, ремон
    python manage.py migrate
    ```
 5. Создайте суперпользователя:
-```
-python manage.py createsuperuser
-```
+   ```
+   python manage.py createsuperuser
+   ```
 введите username, email и password.
+
 6. Запустите сервер:
-```
-python manage.py runserver
-```
+   ```
+   python manage.py runserver
+   ```
 
 Сервер будет доступен по адресу: `http://127.0.0.1:8000/`
    
+
 
 
