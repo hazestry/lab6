@@ -8,13 +8,48 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'first_name', 'last_name']
         read_only_fields = ['id']
 
-class ClientSerializer(serializers.ModelSerializer):
+
+# сериализаторы для чтения 
+class ClientDetailSerializer(serializers.ModelSerializer):
+    # о клиенте
     user = UserSerializer()
     cars_count = serializers.IntegerField(source='cars.count', read_only=True)
 
     class Meta:
         model = Client
         fields = ['id', 'user', 'phone', 'address', 'cars_count']
+        read_only_fields = ['id']
+
+
+class CarDetailSerializer(serializers.ModelSerializer):
+    # о машине
+    owner = ClientDetailSerializer(read_only=True)
+    orders_count = serializers.IntegerField(source='orders.count', read_only=True)
+
+    class Meta:
+        model = Car
+        fields = ['id', 'owner', 'make', 'model', 'year', 'orders_count']
+        read_only_fields = ['id']
+
+
+class OrderDetailSerializer(serializers.ModelSerializer):
+    # о заказе
+    car = CarDetailSerializer(read_only=True)
+
+    class Meta:
+        model = Order
+        fields = ['id', 'car', 'description', 'date_created', 'price', 'status']
+        read_only_fields = ['id', 'date_created']
+
+
+# сериализаторы для записи
+class ClientSerializer(serializers.ModelSerializer):
+    # запись / изменение клиента
+    user = UserSerializer()
+
+    class Meta:
+        model = Client
+        fields = ['id', 'user', 'phone', 'address']
         read_only_fields = ['id']
 
     def create(self, validated_data):
@@ -36,29 +71,42 @@ class ClientSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+    def to_representation(self, instance):
+        #сериализатор для отображения
+        return ClientDetailSerializer(instance, context=self.context).data
+
+
 class CarSerializer(serializers.ModelSerializer):
-    owner = ClientSerializer(read_only=True)
+    # запись / изменение машины
     owner_id = serializers.PrimaryKeyRelatedField(
         queryset=Client.objects.all(), 
-        source='owner', 
-        write_only=True
+        source='owner',
+        help_text="ID владельца автомобиля"
     )
-    orders_count = serializers.IntegerField(source='orders.count', read_only=True)
 
     class Meta:
         model = Car
-        fields = ['id', 'owner', 'owner_id', 'make', 'model', 'year', 'orders_count']
+        fields = ['id', 'owner_id', 'make', 'model', 'year']
         read_only_fields = ['id']
 
+    def to_representation(self, instance):
+        #сериализатор для отображения
+        return CarDetailSerializer(instance, context=self.context).data
+
+
 class OrderSerializer(serializers.ModelSerializer):
-    car = CarSerializer(read_only=True)
+    # запись / изменение заказа
     car_id = serializers.PrimaryKeyRelatedField(
         queryset=Car.objects.all(), 
-        source='car', 
-        write_only=True
+        source='car',
+        help_text="ID автомобиля"
     )
 
     class Meta:
         model = Order
-        fields = ['id', 'car', 'car_id', 'description', 'date_created', 'price', 'status']
-        read_only_fields = ['id', 'date_created']
+        fields = ['id', 'car_id', 'description', 'price', 'status']
+        read_only_fields = ['id']
+
+    def to_representation(self, instance):
+        #сериализатор для отображения
+        return OrderDetailSerializer(instance, context=self.context).data

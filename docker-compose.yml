@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: carcenter_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .env
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hazestry} -d ${POSTGRES_DB:-carcenter_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    container_name: carcenter_app
+    command: >
+      sh -c "
+      echo 'Waiting for PostgreSQL...' &&
+      while ! nc -z db 5432; do sleep 1; done &&
+      echo 'PostgreSQL started' &&
+      echo 'Checking environment...' &&
+      echo DB_NAME: $$POSTGRES_DB &&
+      echo DB_USER: $$POSTGRES_USER &&
+      echo 'Applying migrations...' &&
+      python manage.py makemigrations &&
+      python manage.py migrate &&
+      echo 'Starting server...' &&
+      python manage.py runserver 0.0.0.0:8000
+      "
+    volumes:
+      - .:/app
+    environment:
+      # Явно передаем переменные окружения
+      - POSTGRES_DB=${POSTGRES_DB:-carcenter_db}
+      - POSTGRES_USER=${POSTGRES_USER:-hazestry}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-passw0rd}
+      - DEBUG=${DEBUG:-True}
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+volumes:
+  postgres_data:
